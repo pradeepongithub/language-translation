@@ -1,0 +1,5 @@
+pip install uvicorn
+pip install websockets
+pip install fastapi
+pip install googletrans==4.0.0-rc1
+

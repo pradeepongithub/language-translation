@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machine Translation System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .translation-result {
+            margin-top: 20px;
+        }
+
+        .translation-result label {
+            font-weight: bold;
+        }
+
+        .translation-result p {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Machine Translation System</h1>
+        <div class="form-group">
+            <label for="inputText">Enter Bengali Sentence:</label>
+            <input type="text" id="inputText" placeholder="Enter Bengali sentence...">
+        </div>
+        <button id="translateBtn">Translate</button>
+        <div class="translation-result" id="translationResult">
+            <!-- Translation result will be displayed here -->
+        </div>
+    </div>
+
+    <script>
+        const translateBtn = document.getElementById('translateBtn');
+        const inputText = document.getElementById('inputText');
+        const translationResult = document.getElementById('translationResult');
+        let socket = null;
+
+        translateBtn.addEventListener('click', async () => {
+            const bengaliText = inputText.value.trim();
+            if (bengaliText) {
+                try {
+                    const translatedText = await translateText(bengaliText);
+                    displayTranslationResult(translatedText);
+                    if (!socket || socket.readyState !== WebSocket.OPEN) {
+                    // Establish WebSocket connection if not already established
+                    establishWebSocketConnection();
+                    }
+                    // Wait for the WebSocket connection to open
+                    await waitForSocketOpen();
+                
+                    // Once the WebSocket connection is open, send the message
+                    socket.send(bengaliText);
+
+                } catch (error) {
+                    console.error('Translation error:', error.message);
+                    displayTranslationError('An error occurred during translation. Please try again.');
+                }
+            } else {
+                displayTranslationError('Please enter a Bengali sentence to translate.');
+            }
+        });
+
+        async function translateText(text) {
+            try {
+                const response = await fetch('http://localhost:8000/translate/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text }),
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to fetch translation');
+                }
+                const data = await response.json();
+                return data.translation;
+            } catch (error) {
+                throw new Error('An error occurred during translation. Please try again.');
+            }
+        }
+
+        function displayTranslationResult(translatedText) {
+            translationResult.innerHTML = `
+                <label>Translated Māori Sentence:</label>
+                <p>${translatedText}</p>
+            `;
+        }
+
+        function displayTranslationError(errorMessage) {
+            translationResult.innerHTML = `
+                <p style="color: red;">Error: ${errorMessage}</p>
+            `;
+        }
+
+        async function waitForSocketOpen() {
+        return new Promise(resolve => {
+            if (socket.readyState === WebSocket.OPEN) {
+                resolve();
+            } else {
+                socket.addEventListener('open', resolve);
+            }
+        });
+    }
+
+    function establishWebSocketConnection() {
+        socket = new WebSocket('ws://localhost:8000/ws/');
+        socket.onopen = () => console.log('WebSocket connection established');
+        socket.onerror = error => console.error('WebSocket error:', error);
+        socket.onmessage = event => {
+            const translatedText = event.data;
+            displayTranslationResult(translatedText);
+        };
+    }
+    </script>
+</body>
+</html> 
